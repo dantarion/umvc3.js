@@ -5,7 +5,9 @@ const co = require('co');
 var api;
 var contents = fs.readFileSync(__dirname + '/inject.js', 'utf8');
 var timeouts = {};
-watch('P:\\FGRE\\umvc3-tools\\out\\', {
+//Change this to point to where your mods are.
+const MOD_PATH = 'P:\\FGRE\\umvc3-tools\\out\\';
+watch(MOD_PATH, {
   recursive: true,
   followSymLinks: true
 }, function(event,filename) {
@@ -20,7 +22,7 @@ watch('P:\\FGRE\\umvc3-tools\\out\\', {
     console.log(filename,event, 'changed..sending.');
     try{
       var data = fs.readFileSync(filename);
-      filename = filename.replace('P:\\FGRE\\umvc3-tools\\out\\','');
+      filename = filename.replace(MOD_PATH,'');
       console.log("<<<<<<<<<<<<<<<<< sending replacement file",filename);
       api.sendFile(filename.slice(0,-4), data);
     } catch(e){
@@ -43,7 +45,7 @@ co(function*() {
         return;
       }
       try{
-        var data = fs.readFileSync("P:\\FGRE\\umvc3-tools\\out\\"+message.payload[1]);
+        var data = fs.readFileSync(MOD_PATH+message.payload[1]);
         console.log("<<<<<<<<<<<<<<<<< sending replacement file",message.payload[1]);
         api.sendFile(message.payload[1].slice(0,-4), data);
       } catch(e){
