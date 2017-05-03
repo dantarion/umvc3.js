@@ -1,0 +1,17 @@
+{
+  "name": "umvc3-rte",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "dantarion",
+  "license": "ISC",
+  "dependencies": {
+    "co": "^4.6.0",
+    "frida": "^9.1.28",
+    "node-watch": "^0.5.3",
+    "socket.io": "^1.7.3"
+  }
+}
