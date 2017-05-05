@@ -13,7 +13,9 @@ def hexif(e):
     else:
         return hex(e)
 def parseFile(filename, charname):
-    if not os.path.isfile(filename): return
+    if not os.path.isfile(filename):
+        print filename,"doesn't exist"
+        return
     f = open(filename,"rb")
     jsonData = OrderedDict()
     TYPE = f.read(4)[0:3]
@@ -58,46 +60,18 @@ def parseFile(filename, charname):
             entry = list(struct.unpack("<4i4i4i3f6i4i3fi2fiiiiiiiiffffffffffiiiiiffiiffiiiiifiiiiiiiiiiiiiiiiiiiiiiiiffffiiiiii",f.read(400)))
             keys = ["unk0", "startup", "unk8", "unkC", "unk10", "unk14", "unk18", "multihit", "unk20", "unk24", "unk28", "unk2C", "unk30", "unk34", "unk38", "flags1", "flags2", "unk44", "hitstunEffect", "attackLevel", "unk50", "unk54", "unk58", "unk5C", "damage", "damageScaling", "damageMultiplier", "unk6C", "unk70", "meterGain", "unk78", "unk7C", "unk80", "unk84", "unk88", "unk8C", "unk90", "unk94", "unk98", "enemyPushback", "corneredPushback", "unkA4", "unkA8", "unkAC", "unkB0", "unkB4", "unkB8", "unkBC", "unkC0", "hitstop", "unkC8", "unkCC", "unkD0", "juggleLength", "unkD8", "unkDC", "juggleSpeed", "unkE4", "unkE8", "unkEC", "unkF0", "unkF4", "unkF8", "unkFC", "unk100", "unk104", "unk108", "unk10C", "unk110", "unk114", "unk118", "unk11C", "unk120", "unk124", "unk128", "unk12C", "unk130", "unk134", "unk138", "unk13C", "unk140", "unk144", "unk148", "unk14C", "hitSfxCategory", "hitSfx", "unk158", "unk15C", "unk160", "unk164", "unk168", "unk16C", "unk170", "unk174", "unk178", "unk17C", "unk180", "unk184", "unk188"]
             jsonData[ID] = dict(zip(keys,entry))
-            #print "<td>",struct.unpack("<3f",f.read(12)),"</td>"
-            #print cell(struct.unpack("<6i",f.read(24)))
-            #print cell(struct.unpack("<4i",f.read(16)))
-            #print cell(struct.unpack("<3fi",f.read(16)))
-            #print cell(struct.unpack("<3f",f.read(12)))
-            #for i in range(0,4):
-            #    print "<td>",f.read(8).encode("hex"),"</td>"
-            #print "<td>",struct.unpack("<f",f.read(4)),"</td>"
-            #while f.tell() < PTR + 0x18C:
-            #    print "<td>",f.read(8).encode("hex"),"</td>"
-            #print "<td>",hex(f.tell()),"</td>"
-            #print "</tr>"
-
+            struct.unpack("<3f",f.read(12))
         else:
-            print "<tr>"
-            print "<th colspan='2'>"+filename+"#"+hex(ID)+"@"+hex(PTR)+"</th>"
-            #print "<h3>%35s</h3>" % filename
-            #print "<td>",hex(f.tell()),"</td>"
-            #unk1,length,unk2,unk3 = struct.unpack("<4I",f.read(16))
-            #print "<td>%08X</td>" % (PTR),
-            #print "<td>%08X</td>" % (NEXTPTR - PTR),
-            #f.read(0x14)
             data = struct.unpack("<4i",f.read(4*4))
-            #print cell(map(hex,data))
-            print "</tr>"
-
             for x in range(0,data[0]+1):
                 f.seek(PTR+16+x*8)
-                print "<tr>"
                 t = struct.unpack("<2i",f.read(8))
-                print "<td>Frame: "+str(t[0])+"</td>"
                 subentry = []
                 entry[t[0]] = subentry
 
 
                 f.seek(PTR+t[1])
                 data = struct.unpack("<4i",f.read(4*4))
-                #print "<td>"+str(data)+"</td>"
-                print "<td>"
-                print "<pre>"
                 dataSegment = 0
                 for x in range(0,data[1]):
                     f.seek(PTR+t[1]+16+x*8)
@@ -135,11 +109,6 @@ def parseFile(filename, charname):
                     subentry.append({"group":data3[0],"id":data3[1],"params":params})
                     commandUsage[(data3[0],data3[1])].append("%30s 0x%03X %s\n" %(filename,ID,s))
                     dataSegment = data2[0]
-                print "</pre>"
-                print "</td>"
-                print "</tr>"
-            print "<tr><th>"+hex(f.tell()-PTR)+"</th></tr>"
-    print "</table>"
     f.close()
     import json
     outpath = "unk"
@@ -158,21 +127,13 @@ for charname in os.listdir("out/chr/"):
     characters.append(charname)
     #if charname not in ["Ryu","cmn"] : continue
     print charname
-    out = open("html/"+charname+".html","wb")
-    res = sys.stdout
-    sys.stdout = out
-    print open("templates/header.html","r").read()
-    parseFile("out\\chr\\"+charname+"\\atkinfo.ati",charname)
+    parseFile(os.path.join("out","chr",charname,"atkinfo.ati"),charname)
     if charname == "cmn":
-        parseFile("out\\chr\\"+charname+"\\anmcmn.anm",charname)
+        parseFile(os.path.join("out","chr",charname,"anmcmn.anm")",charname)
     else:
-        parseFile("out\\chr\\"+charname+"\\anmchr.anm",charname)
+        parseFile(os.path.join("out","chr",charname,"anmchr.anm"),charname)
     #parseFile("archive/0001_param/chr/Ryu/baseact.3C6EA504")
     #parseFile("archive/0001_param/chr/Ryu/atkinfo.227A8048")
-    print open("templates/footer.html","r").read()
-    sys.stdout = res
-    out.flush()
-    out.close()
 print characters
 print commandFormats
 '''
