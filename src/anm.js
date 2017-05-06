@@ -1,6 +1,7 @@
 const fs = require('fs')
 const path = require('path')
 const assert = require('assert')
+const os = require('os')
 
 const common = require('./common')
 const _ = require('struct-fu')
@@ -34,7 +35,7 @@ function unpackAnm (buffer, folder) {
   assert(entryHeader.Type === 'CAC', 'This isn\'t a proper .anm file, missing header CAC')
   assert(entryHeader.unknown === 1195287387, 'Is this really constant? unknown')
   assert(entryHeader.unknown2 === 0, 'Is this really constant? unknown2')
-  console.log(entryHeader)
+  // console.log(entryHeader)
   // entryHeader.tableCount = 10;
   for (let i = 0; i < entryHeader.tableCount; i++) {
     const tableEntry = common.CommonTableEntry.unpack(buffer.slice(0x10 + i * 8))
@@ -57,11 +58,11 @@ function unpackAnm (buffer, folder) {
     const anmHeader = AnmEntryHeader.unpack(buffer.slice(tableEntry.offset))
     assert(anmHeader.unknown3 === 0, 'Is this really constant? unknown3')
     assert(anmHeader.unknown4 === 0, 'Is this really constant? unknown4')
-    console.log('\t', anmHeader)
+    // console.log('\t', anmHeader)
     for (let j = 0; j < anmHeader.functionCount + 1; j++) {
       // Read Function Header
       const functionHeader = AnmFunctionHeader.unpack(buffer.slice(tableEntry.offset + 0x10 + j * 8))
-      console.log('\t\t', functionHeader)
+      // console.log('\t\t', functionHeader)
       const astLabel = {
         type: 'LabeledStatement',
         label: {
@@ -77,15 +78,15 @@ function unpackAnm (buffer, folder) {
       }
       astFunction.body.body.push(astLabel)
       const secondaryData = AnmFunctionHeader2.unpack(buffer.slice(tableEntry.offset + functionHeader.offset))
-      console.log('\t\t', secondaryData)
+      // console.log('\t\t', secondaryData)
       assert(secondaryData.unknown3 === 0, 'Is this really constant? unknown3')
       assert(secondaryData.unknown4 === 0, 'Is this really constant? unknown4')
       for (let n = 0; n < secondaryData.commandCount; n++) {
         const data = _.struct([_.int32le('offset'), _.uint32le('unknown1')]).unpack(buffer.slice(tableEntry.offset + functionHeader.offset + 0x10 + n * 8))
 
         const command = AnmCommand.unpack(buffer.slice(tableEntry.offset + functionHeader.offset + data.offset))
-        console.log('\t\t\t', command)
-        astLabel.body.body.push({
+        // console.log('\t\t\t', command)
+        var astCall = {
           type: 'ExpressionStatement',
           expression: {
             type: 'CallExpression',
@@ -95,7 +96,22 @@ function unpackAnm (buffer, folder) {
             },
             arguments: []
           }
-        })
+        }
+        astLabel.body.body.push(astCall)
+        if (command.dataCount > 0) {
+          var params = _.uint32le(command.dataCount * 2).unpack(buffer.slice(tableEntry.offset + functionHeader.offset + data.offset + 0x10))
+          var astParams = params.map((param) => {
+            return {
+              'type': 'Literal',
+              'value': param,
+              'raw': {
+                content: printf('0x%X', param),
+                precedence: escodegen.Precedence.Primary
+              }
+            }
+          })
+          astCall.expression.arguments = astParams
+        }
       }
     }
   }
@@ -105,7 +121,8 @@ function unpackAnm (buffer, folder) {
         style: '  '
       }
     },
-    comment: true
+    comment: true,
+    verbatim: 'raw'
   })
   fs.appendFileSync(outJS, codeStr)
   fs.closeSync(outJS)
@@ -124,4 +141,12 @@ function unpackAnmFile (filename, folder) {
 function packAnm (filename, folder) {
   throw new Error('packing an Anm from ')
 }
-unpackAnmFile('../out/chr/Ryu/anmchr.anm', 'Ryu')
+fs.readdirSync(path.join(__dirname, '..', 'out', 'chr')).forEach((filename) => {
+  console.log(filename)
+  var filePath = path.join(__dirname, '..', 'out', 'chr', filename, 'anmchr.anm')
+  try {
+    unpackAnmFile(filePath, filename)
+  } catch (e) {
+    console.log('error', e)
+  }
+})
