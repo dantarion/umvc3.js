@@ -1,5 +1,5 @@
 const frida = require('frida')
-const load = require('frida-load')
+const compile = require('frida-compile')
 const fs = require('fs')
 const watch = require('node-watch')
 const co = require('co')
@@ -7,7 +7,7 @@ const path = require('path')
 var api
 var timeouts = {}
 // Change this to point to where your mods are.
-const MOD_PATH = path.join(__dirname, '..', 'out')
+const MOD_PATH = path.join(__dirname, '..', 'mods')
 watch(MOD_PATH, {
   recursive: true,
   followSymLinks: true
@@ -27,16 +27,18 @@ watch(MOD_PATH, {
       console.log('<<<<<<<<<<<<<<<<< sending replacement file', filename)
       api.sendFile(filename.slice(0, -4), data)
     } catch (e) {
-      console.error(e)
+      console.error("Couldn't load", filename)
     }
   }, 100)
 })
 
 co(function * () {
-  var contents = yield load(require.resolve('../frida/inject.js'))
+
+  var contents = yield compile.compile(path.join(__dirname, '../frida/inject.js'), {}, {babelify: true})
   var session = yield frida.attach('umvc3.exe')
   console.log('attached to UMVC3...:', session)
-  var script = yield session.createScript(contents)
+  session.enableJit();
+  var script = yield session.createScript(contents.bundle)
   console.log('script injected:', script)
   yield script.load()
   api = yield script.getExports()
@@ -50,7 +52,7 @@ co(function * () {
       console.log('<<<<<<<<<<<<<<<<< sending replacement file', message.payload[1])
       api.sendFile(message.payload[1].slice(0, -4), fdata)
     } catch (e) {
-      console.error(e)
+      console.error("Couldn't load", path.join(MOD_PATH, message.payload[1]))
     }
   })
   console.log('script loaded! WE IN THERE')

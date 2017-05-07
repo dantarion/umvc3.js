@@ -1,9 +1,8 @@
+console.log("running")
 var loadedFiles = {};
 var allocations = {};
 //140295380
 // Resource Load
-var AllocConsole = (new NativeFunction(Module.findExportByName("kernel32.dll", "AllocConsole"),'int',[]))()
-console.log("Console?",AllocConsole);
 Interceptor.attach(ptr("0x140295380"), {
   onEnter: function(args) {
     var resource = {};

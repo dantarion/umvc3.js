@@ -14,9 +14,7 @@ const AnmFunctionHeader2 = _.struct([_.int32le('frame'), _.uint32le('commandCoun
 const AnmCommand = _.struct([_.uint32le('group'), _.uint32le('id'), _.uint32le('dataCount'), _.uint32le('unknown4')])
 function unpackAnmEntry (buffer, folder) {}
 function unpackAnm (buffer, folder) {
-  // Prepare output folder
-  mkdirp.sync(path.join(__dirname, '..', 'working', folder))
-  const outJS = fs.openSync(path.join(__dirname, '..', 'working', folder, 'anmcmd.js'), 'w')
+
   const astRoot = {
     type: 'Program',
     body: [],
@@ -124,6 +122,9 @@ function unpackAnm (buffer, folder) {
     comment: true,
     verbatim: 'raw'
   })
+  // Prepare output folder
+  mkdirp.sync(path.join(__dirname, '..', 'working', folder))
+  const outJS = fs.openSync(path.join(__dirname, '..', 'working', folder, 'anmcmd.js'), 'w')
   fs.appendFileSync(outJS, codeStr)
   fs.closeSync(outJS)
   return entries
