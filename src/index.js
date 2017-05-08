@@ -6,7 +6,7 @@ const co = require('co')
 const path = require('path')
 var api
 var timeouts = {}
-// Change this to point to where your mods are.
+
 const MOD_PATH = path.join(__dirname, '..', 'mods')
 watch(MOD_PATH, {
   recursive: true,
@@ -23,7 +23,7 @@ watch(MOD_PATH, {
     console.log(filename, event, 'changed..sending.')
     try {
       var data = fs.readFileSync(filename)
-      filename = filename.replace(MOD_PATH, '')
+      filename = filename.replace(MOD_PATH+"\\", '')
       console.log('<<<<<<<<<<<<<<<<< sending replacement file', filename)
       api.sendFile(filename.slice(0, -4), data)
     } catch (e) {

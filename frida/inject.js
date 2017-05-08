@@ -55,7 +55,7 @@ Interceptor.attach(ptr("0x1402951D0"), {
   onEnter: function(args) {
     var path = Memory.readCString(args[0].add(0xC));
     if (!loadedFiles[path]) {
-      console.error(">>>> Unknown file being unloaded", JSON.stringify(resource));
+      //console.error(">>>> Unknown file being unloaded", JSON.stringify(resource));
       return;
     }
     var resource = loadedFiles[path];
