@@ -23,7 +23,7 @@ watch(MOD_PATH, {
     console.log(filename, event, 'changed..sending.')
     try {
       var data = fs.readFileSync(filename)
-      filename = filename.replace(MOD_PATH+"\\", '')
+      filename = filename.replace(MOD_PATH + '\\', '')
       console.log('<<<<<<<<<<<<<<<<< sending replacement file', filename)
       api.sendFile(filename.slice(0, -4), data)
     } catch (e) {
@@ -33,11 +33,10 @@ watch(MOD_PATH, {
 })
 
 co(function * () {
-
   var contents = yield compile.compile(path.join(__dirname, '../frida/inject.js'), {}, {babelify: true})
   var session = yield frida.attach('umvc3.exe')
   console.log('attached to UMVC3...:', session)
-  session.enableJit();
+  session.enableJit()
   var script = yield session.createScript(contents.bundle)
   console.log('script injected:', script)
   yield script.load()

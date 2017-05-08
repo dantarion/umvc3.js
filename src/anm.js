@@ -1,7 +1,6 @@
 const fs = require('fs')
 const path = require('path')
 const assert = require('assert')
-const os = require('os')
 
 const common = require('./common')
 const _ = require('struct-fu')
@@ -12,9 +11,7 @@ const AnmEntryHeader = _.struct([_.uint32le('functionCount'), _.uint32le('unknow
 const AnmFunctionHeader = _.struct([_.int32le('frame'), _.uint32le('offset')])
 const AnmFunctionHeader2 = _.struct([_.int32le('frame'), _.uint32le('commandCount'), _.uint32le('unknown3'), _.uint32le('unknown4')])
 const AnmCommand = _.struct([_.uint32le('group'), _.uint32le('id'), _.uint32le('dataCount'), _.uint32le('unknown4')])
-function unpackAnmEntry (buffer, folder) {}
 function unpackAnm (buffer, folder) {
-
   const astRoot = {
     type: 'Program',
     body: [],
@@ -123,8 +120,8 @@ function unpackAnm (buffer, folder) {
     verbatim: 'raw'
   })
   // Prepare output folder
-  mkdirp.sync(path.join(__dirname, '..', 'working', folder))
-  const outJS = fs.openSync(path.join(__dirname, '..', 'working', folder, 'anmcmd.js'), 'w')
+  mkdirp.sync(path.join(process.cwd(), 'working', folder))
+  const outJS = fs.openSync(path.join(process.cwd(), 'working', folder, 'anmcmd.js'), 'w')
   fs.appendFileSync(outJS, codeStr)
   fs.closeSync(outJS)
   return entries
@@ -142,12 +139,9 @@ function unpackAnmFile (filename, folder) {
 function packAnm (filename, folder) {
   throw new Error('packing an Anm from ')
 }
-fs.readdirSync(path.join(__dirname, '..', 'out', 'chr')).forEach((filename) => {
-  console.log(filename)
-  var filePath = path.join(__dirname, '..', 'out', 'chr', filename, 'anmchr.anm')
-  try {
-    unpackAnmFile(filePath, filename)
-  } catch (e) {
-    console.log('error', e)
-  }
-})
+
+module.exports = {
+  packAnm: packAnm,
+  unpackAnmFile: unpackAnmFile,
+  unpackAnm: unpackAnm
+}
