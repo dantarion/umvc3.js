@@ -7,5 +7,5 @@ module.exports.CommonHeaderStruct = _.struct([
 ])
 
 module.exports.CommonTableEntry = _.struct('CommonTableEntry', [
-  _.uint32le('id'),
+  _.int32le('id'),
   _.uint32le('offset')], function () { console.log('test', arguments) })

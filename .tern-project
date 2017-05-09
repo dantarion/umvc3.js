@@ -3,13 +3,11 @@
   "libs": [],
   "loadEagerly": [],
   "dontLoad": [
-    "node_module/**"
+    "node_module/**",
+    "working/**"
   ],
   "plugins": {
     "doc_comment": true,
-    "complete_strings": {
-      "maxLength": 15
-    },
     "node": {
       "dontLoad": "",
       "load": "",

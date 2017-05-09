@@ -6,6 +6,7 @@ const common = require('./common')
 const _ = require('struct-fu')
 const mkdirp = require('mkdirp')
 const escodegen = require('escodegen')
+const esprima = require('esprima')
 const printf = require('printf')
 const AnmEntryHeader = _.struct([_.uint32le('functionCount'), _.uint32le('unknown2'), _.uint32le('unknown3'), _.uint32le('unknown4')])
 const AnmFunctionHeader = _.struct([_.int32le('frame'), _.uint32le('offset')])
@@ -137,9 +138,100 @@ function unpackAnmFile (filename, folder) {
   return unpackAnm(buffer, folder)
 }
 function packAnm (filename, folder) {
-  throw new Error('packing an Anm from ')
-}
+  var outAnm = fs.openSync('out.anm', 'w')
 
+  var entries = []
+  var entrySizes = []
+
+  var currentFile = path.join(folder, 'anmcmd.js')
+  var sourceJS = fs.readFileSync(currentFile, 'utf-8')
+  var result = esprima.parse(sourceJS)
+  try {
+    var header = {
+      Type: 'CAC',
+      unknown: 1195287387,
+      unknown2: 0,
+      tableCount: result.body.length
+    }
+    var dataStart = 0x10 + 8 * header.tableCount
+    // Actually write file now!
+    var headerData = common.CommonHeaderStruct.pack(header)
+    fs.writeSync(outAnm, headerData, 0, headerData.length, 0)
+    var currentOffset = dataStart
+    result.body.forEach((stateExpr, index) => {
+      assert(stateExpr.type === 'FunctionDeclaration')
+      assert(stateExpr.id.name.startsWith('state'))
+      var state = {
+        id: parseInt(stateExpr.id.name.substr(5), 16),
+        offset: currentOffset
+      }
+      var anmentryheader = {
+        functionCount: stateExpr.body.body.length - 1,
+        unknown2: -1
+      }
+      var entryBase = currentOffset
+      currentOffset += 0x10
+      currentOffset += stateExpr.body.body.length * 8
+      stateExpr.body.body.forEach((frameExpr, index) => {
+        var frame = {
+          frame: -1,
+          commandCount: frameExpr.body.body.length,
+          offset: 0xBBBBBBBB
+        }
+        assert(frameExpr.type === 'LabeledStatement')
+        if (frameExpr.label.name === 'init') {
+          frame.frame = -1
+        } else if (frameExpr.label.name.startsWith('frame')) {
+          frame.frame = parseInt(frameExpr.label.name.substr(6), 10)
+        } else {
+          throw new Error('Labels can be either be "init" or "frame_%d"')
+        }
+        anmentryheader.unknown2 = Math.max(anmentryheader.unknown2, frame.frame)
+        frame.offset = currentOffset - state.offset
+        rawData = AnmFunctionHeader2.pack(frame)
+        fs.writeSync(outAnm, rawData, 0, rawData.length, currentOffset)
+        currentOffset += rawData.length
+        var baseOffset = currentOffset
+        currentOffset += 8 * frameExpr.body.body.length
+        frameExpr.body.body.forEach((callExpr, index) => {
+          assert(callExpr.type === 'ExpressionStatement')
+          assert(callExpr.expression.type === 'CallExpression')
+          var call = {
+            group: 0,
+            id: 0,
+            dataCount: callExpr.expression.arguments.length / 2
+          }
+          call.group = parseInt(callExpr.expression.callee.name.substr(1, 2), 16)
+          call.id = parseInt(callExpr.expression.callee.name.substr(4), 16)
+          rawData = AnmCommand.pack(call)
+          fs.writeSync(outAnm, rawData, 0, rawData.length, currentOffset)
+          currentOffset += rawData.length
+
+          rawData = _.uint32le(1).pack([currentOffset - baseOffset])
+          fs.writeSync(outAnm, rawData, 0, rawData.length, baseOffset + 8 * index)
+
+          callExpr.expression.arguments.forEach((argumentExpr) => {
+            if (argumentExpr.type === 'Literal') {
+              rawData = _.uint32le(1).pack([argumentExpr.value])
+              fs.writeSync(outAnm, rawData, 0, rawData.length, currentOffset)
+              currentOffset += rawData.length
+            }
+          })
+
+        })
+        rawData = AnmFunctionHeader.pack(frame)
+        fs.writeSync(outAnm, rawData, 0, rawData.length, state.offset + 0x10 + 8 * index)
+      })
+      var rawData = AnmEntryHeader.pack(anmentryheader)
+      fs.writeSync(outAnm, rawData, 0, rawData.length, entryBase)
+      rawData = common.CommonTableEntry.pack(state)
+      fs.writeSync(outAnm, rawData, 0, rawData.length, 0x10 + 8 * index)
+    })
+  } catch (e) {
+    console.log('error on file:', currentFile)
+    console.log(e)
+  }
+}
 module.exports = {
   packAnm: packAnm,
   unpackAnmFile: unpackAnmFile,
