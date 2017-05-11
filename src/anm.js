@@ -12,7 +12,7 @@ const AnmEntryHeader = _.struct([_.uint32le('functionCount'), _.uint32le('unknow
 const AnmFunctionHeader = _.struct([_.int32le('frame'), _.uint32le('offset')])
 const AnmFunctionHeader2 = _.struct([_.int32le('frame'), _.uint32le('commandCount'), _.uint32le('unknown3'), _.uint32le('unknown4')])
 const AnmCommand = _.struct([_.uint32le('group'), _.uint32le('id'), _.uint32le('dataCount'), _.uint32le('unknown4')])
-function unpackAnm (buffer, folder) {
+function unpack (buffer, folder) {
   const astRoot = {
     type: 'Program',
     body: [],
@@ -127,7 +127,7 @@ function unpackAnm (buffer, folder) {
   fs.closeSync(outJS)
   return entries
 }
-function unpackAnmFile (filename, folder) {
+function unpackFile (filename, folder) {
   let buffer
   try {
     buffer = fs.readFileSync(filename)
@@ -135,13 +135,10 @@ function unpackAnmFile (filename, folder) {
     console.error('Error Opening', filename)
     throw e
   }
-  return unpackAnm(buffer, folder)
+  return unpack(buffer, folder)
 }
-function packAnm (filename, folder) {
+function pack (filename, folder) {
   var outAnm = fs.openSync('out.anm', 'w')
-
-  var entries = []
-  var entrySizes = []
 
   var currentFile = path.join(folder, 'anmcmd.js')
   var sourceJS = fs.readFileSync(currentFile, 'utf-8')
@@ -217,7 +214,6 @@ function packAnm (filename, folder) {
               currentOffset += rawData.length
             }
           })
-
         })
         rawData = AnmFunctionHeader.pack(frame)
         fs.writeSync(outAnm, rawData, 0, rawData.length, state.offset + 0x10 + 8 * index)
@@ -233,7 +229,7 @@ function packAnm (filename, folder) {
   }
 }
 module.exports = {
-  packAnm: packAnm,
-  unpackAnmFile: unpackAnmFile,
-  unpackAnm: unpackAnm
+  pack: pack,
+  unpackFile: unpackFile,
+  unpack: unpack
 }
