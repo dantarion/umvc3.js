@@ -2,16 +2,19 @@ const fs = require('fs')
 const path = require('path')
 const assert = require('assert')
 
-const common = require('./common')
 const _ = require('struct-fu')
 const mkdirp = require('mkdirp')
 const escodegen = require('escodegen')
 const esprima = require('esprima')
 const printf = require('printf')
+
+const common = require('../common')
+
 const AnmEntryHeader = _.struct([_.uint32le('functionCount'), _.uint32le('unknown2'), _.uint32le('unknown3'), _.uint32le('unknown4')])
 const AnmFunctionHeader = _.struct([_.int32le('frame'), _.uint32le('offset')])
 const AnmFunctionHeader2 = _.struct([_.int32le('frame'), _.uint32le('commandCount'), _.uint32le('unknown3'), _.uint32le('unknown4')])
 const AnmCommand = _.struct([_.uint32le('group'), _.uint32le('id'), _.uint32le('dataCount'), _.uint32le('unknown4')])
+
 function unpack (buffer, folder) {
   const astRoot = {
     type: 'Program',

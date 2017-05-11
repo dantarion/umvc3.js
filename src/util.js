@@ -9,3 +9,6 @@ module.exports.CommonHeaderStruct = _.struct([
 module.exports.CommonTableEntry = _.struct('CommonTableEntry', [
   _.int32le('id'),
   _.uint32le('offset')], function () { console.log('test', arguments) })
+module.exports.CommonFile = (headerString,headerConstant) => {
+  
+};
