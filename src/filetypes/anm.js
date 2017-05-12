@@ -2,17 +2,20 @@ const fs = require('fs')
 const path = require('path')
 const assert = require('assert')
 
-const common = require('./common')
 const _ = require('struct-fu')
 const mkdirp = require('mkdirp')
 const escodegen = require('escodegen')
 const esprima = require('esprima')
 const printf = require('printf')
+
+const common = require('../common')
+
 const AnmEntryHeader = _.struct([_.uint32le('functionCount'), _.uint32le('unknown2'), _.uint32le('unknown3'), _.uint32le('unknown4')])
 const AnmFunctionHeader = _.struct([_.int32le('frame'), _.uint32le('offset')])
 const AnmFunctionHeader2 = _.struct([_.int32le('frame'), _.uint32le('commandCount'), _.uint32le('unknown3'), _.uint32le('unknown4')])
 const AnmCommand = _.struct([_.uint32le('group'), _.uint32le('id'), _.uint32le('dataCount'), _.uint32le('unknown4')])
-function unpackAnm (buffer, folder) {
+
+function unpack (buffer, folder) {
   const astRoot = {
     type: 'Program',
     body: [],
@@ -143,7 +146,7 @@ function unpackAnm (buffer, folder) {
   fs.closeSync(outJS)
   return entries
 }
-function unpackAnmFile (filename, folder) {
+function unpackFile (filename, folder) {
   let buffer
   try {
     buffer = fs.readFileSync(filename)
@@ -151,14 +154,11 @@ function unpackAnmFile (filename, folder) {
     console.error('Error Opening', filename)
     throw e
   }
-  return unpackAnm(buffer, folder)
+  return unpack(buffer, folder)
 }
-function packAnm (filename, folder) {
-  var outAnm = fs.openSync(filename, 'w')
 
-  var entries = []
-  var entrySizes = []
-
+function pack (filename, folder) {
+  var outAnm = fs.openSync('out.anm', 'w')
   var currentFile = path.join(folder, 'anmcmd.js')
   var sourceJS = fs.readFileSync(currentFile, 'utf-8')
   var result = esprima.parse(sourceJS)
@@ -248,7 +248,7 @@ function packAnm (filename, folder) {
   }
 }
 module.exports = {
-  packAnm: packAnm,
-  unpackAnmFile: unpackAnmFile,
-  unpackAnm: unpackAnm
+  pack: pack,
+  unpackFile: unpackFile,
+  unpack: unpack
 }

@@ -1,6 +1,7 @@
 const fs = require('fs')
 const path = require('path')
-const anm = require('./anm')
+
+const anm = require('./filetypes/anm')
 
 const program = require('commander')
 const version = '0.1.0'
