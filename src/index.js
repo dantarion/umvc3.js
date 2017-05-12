@@ -4,12 +4,10 @@ const fs = require('fs')
 const watch = require('node-watch')
 const co = require('co')
 const path = require('path')
-const mkdirp = require('mkdirp')
 var api
 var timeouts = {}
 
-const MOD_PATH = path.join(process.cwd(), 'mods')
-mkdirp(MOD_PATH, function () {})
+const MOD_PATH = path.join(__dirname, '..', 'mods')
 watch(MOD_PATH, {
   recursive: true,
   followSymLinks: true

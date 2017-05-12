@@ -47,7 +47,14 @@ function unpackAnm (buffer, folder) {
         body: []
       },
       generator: false,
-      expression: false
+      expression: false,
+      leadingComments: [
+        {
+          type: 'Line',
+          value: printf("0x%X", tableEntry.offset),
+          range: [0, 59]
+        }
+      ]
     }
     astRoot.body.push(astFunction)
 
@@ -91,7 +98,16 @@ function unpackAnm (buffer, folder) {
               name: printf('_%02X_%02X', command.group, command.id)
             },
             arguments: []
-          }
+          },
+          leadingComments: [
+            {
+              type: 'Line',
+              value: printf("0x%X", tableEntry.offset + functionHeader.offset + data.offset),
+              range: [0, 59]
+            }
+          ]
+
+
         }
         astLabel.body.body.push(astCall)
         if (command.dataCount > 0) {
@@ -138,7 +154,7 @@ function unpackAnmFile (filename, folder) {
   return unpackAnm(buffer, folder)
 }
 function packAnm (filename, folder) {
-  var outAnm = fs.openSync('out.anm', 'w')
+  var outAnm = fs.openSync(filename, 'w')
 
   var entries = []
   var entrySizes = []
@@ -217,7 +233,6 @@ function packAnm (filename, folder) {
               currentOffset += rawData.length
             }
           })
-
         })
         rawData = AnmFunctionHeader.pack(frame)
         fs.writeSync(outAnm, rawData, 0, rawData.length, state.offset + 0x10 + 8 * index)
