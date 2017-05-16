@@ -8,14 +8,14 @@ const escodegen = require('escodegen')
 const esprima = require('esprima')
 const printf = require('printf')
 
-const common = require('../common')
+const common = require('./common')
 
 const AnmEntryHeader = _.struct([_.uint32le('functionCount'), _.uint32le('unknown2'), _.uint32le('unknown3'), _.uint32le('unknown4')])
 const AnmFunctionHeader = _.struct([_.int32le('frame'), _.uint32le('offset')])
 const AnmFunctionHeader2 = _.struct([_.int32le('frame'), _.uint32le('commandCount'), _.uint32le('unknown3'), _.uint32le('unknown4')])
 const AnmCommand = _.struct([_.uint32le('group'), _.uint32le('id'), _.uint32le('dataCount'), _.uint32le('unknown4')])
 
-function unpack (buffer, folder) {
+function unpack (inBuffer, outFile) {
   const astRoot = {
     type: 'Program',
     body: [],
@@ -29,7 +29,7 @@ function unpack (buffer, folder) {
     ]
   }
   // Read Header
-  const entryHeader = common.CommonHeaderStruct.unpack(buffer, 0)
+  const entryHeader = common.CommonHeaderStruct.unpack(inBuffer, 0)
   const entries = {}
   assert(entryHeader.Type === 'CAC', 'This isn\'t a proper .anm file, missing header CAC')
   assert(entryHeader.unknown === 1195287387, 'Is this really constant? unknown')
@@ -37,7 +37,8 @@ function unpack (buffer, folder) {
   // console.log(entryHeader)
   // entryHeader.tableCount = 10;
   for (let i = 0; i < entryHeader.tableCount; i++) {
-    const tableEntry = common.CommonTableEntry.unpack(buffer.slice(0x10 + i * 8))
+    const tableEntry = common.CommonTableEntry.unpack(inBuffer.slice(0x10 + i * 8))
+    const tableEntryNext = common.CommonTableEntry.unpack(inBuffer.slice(0x10 + (i + 1) * 8))
     const astFunction = {
       type: 'FunctionDeclaration',
       id: {
@@ -54,13 +55,14 @@ function unpack (buffer, folder) {
     }
     astRoot.body.push(astFunction)
 
-    const anmHeader = AnmEntryHeader.unpack(buffer.slice(tableEntry.offset))
+    const anmHeader = AnmEntryHeader.unpack(inBuffer.slice(tableEntry.offset))
     assert(anmHeader.unknown3 === 0, 'Is this really constant? unknown3')
     assert(anmHeader.unknown4 === 0, 'Is this really constant? unknown4')
     // console.log('\t', anmHeader)
     for (let j = 0; j < anmHeader.functionCount + 1; j++) {
       // Read Function Header
-      const functionHeader = AnmFunctionHeader.unpack(buffer.slice(tableEntry.offset + 0x10 + j * 8))
+      const functionHeader = AnmFunctionHeader.unpack(inBuffer.slice(tableEntry.offset + 0x10 + j * 8))
+      const functionHeaderNext = AnmFunctionHeader.unpack(inBuffer.slice(tableEntry.offset + 0x10 + (j + 1) * 8))
       // console.log('\t\t', functionHeader)
       const astLabel = {
         type: 'LabeledStatement',
@@ -76,14 +78,22 @@ function unpack (buffer, folder) {
         }
       }
       astFunction.body.body.push(astLabel)
-      const secondaryData = AnmFunctionHeader2.unpack(buffer.slice(tableEntry.offset + functionHeader.offset))
+      const secondaryData = AnmFunctionHeader2.unpack(inBuffer.slice(tableEntry.offset + functionHeader.offset))
       // console.log('\t\t', secondaryData)
       assert(secondaryData.unknown3 === 0, 'Is this really constant? unknown3')
       assert(secondaryData.unknown4 === 0, 'Is this really constant? unknown4')
       for (let n = 0; n < secondaryData.commandCount; n++) {
-        const data = _.struct([_.int32le('offset'), _.uint32le('unknown1')]).unpack(buffer.slice(tableEntry.offset + functionHeader.offset + 0x10 + n * 8))
-
-        const command = AnmCommand.unpack(buffer.slice(tableEntry.offset + functionHeader.offset + data.offset))
+        const data = _.struct([_.int32le('offset'), _.uint32le('unknown1')]).unpack(inBuffer.slice(tableEntry.offset + functionHeader.offset + 0x10 + n * 8))
+        const data2 = _.struct([_.int32le('offset'), _.uint32le('unknown1')]).unpack(inBuffer.slice(tableEntry.offset + functionHeader.offset + 0x10 + (n + 1) * 8))
+        var dataSize = data2.offset - data.offset - 0x10
+        if (n === secondaryData.commandCount-1) {
+          dataSize = functionHeaderNext.offset - functionHeader.offset - data.offset - 0x10
+          if (j === anmHeader.functionCount + 1 - 1) {
+            dataSize = tableEntryNext.offset - functionHeader.offset - data.offset - 0x10
+          }
+        }
+        const command = AnmCommand.unpack(inBuffer.slice(tableEntry.offset + functionHeader.offset + data.offset))
+        var hasStr = dataSize / command.dataCount !== 8
         // console.log('\t\t\t', command)
         var astCall = {
           type: 'ExpressionStatement',
@@ -94,12 +104,27 @@ function unpack (buffer, folder) {
               name: printf('_%02X_%02X', command.group, command.id)
             },
             arguments: []
-          }
+          },
+          leadingComments: [
+            {
+              type: 'Line',
+              value: printf('0x%X - %s', tableEntry.offset + functionHeader.offset + data.offset, JSON.stringify([dataSize.toString(16), hasStr, functionHeaderNext.offset.toString(16)])),
+              range: [0, 59]
+            }
+          ]
         }
         astLabel.body.body.push(astCall)
+        var params = []
         if (command.dataCount > 0) {
-          var params = _.uint32le(command.dataCount * 2).unpack(buffer.slice(tableEntry.offset + functionHeader.offset + data.offset + 0x10))
-          var astParams = params.map((param) => {
+          params = _.uint32le(command.dataCount * 2).unpack(inBuffer.slice(tableEntry.offset + functionHeader.offset + data.offset + 0x10))
+        }
+        var astParams = params.map((param) => {
+          if (typeof param === 'string') {
+            return {
+              'type': 'Literal',
+              'value': param
+            }
+          } else {
             return {
               'type': 'Literal',
               'value': param,
@@ -108,9 +133,9 @@ function unpack (buffer, folder) {
                 precedence: escodegen.Precedence.Primary
               }
             }
-          })
-          astCall.expression.arguments = astParams
-        }
+          }
+        })
+        astCall.expression.arguments = astParams
       }
     }
   }
@@ -124,26 +149,26 @@ function unpack (buffer, folder) {
     verbatim: 'raw'
   })
   // Prepare output folder
-  mkdirp.sync(path.join(process.cwd(), 'working', folder))
-  const outJS = fs.openSync(path.join(process.cwd(), 'working', folder, 'anmcmd.js'), 'w')
+  mkdirp.sync(path.dirname(outFile))
+  const outJS = fs.openSync(outFile, 'w')
   fs.appendFileSync(outJS, codeStr)
   fs.closeSync(outJS)
   return entries
 }
-function unpackFile (filename, folder) {
+function unpackFile (inFile, outFile) {
   let buffer
   try {
-    buffer = fs.readFileSync(filename)
+    buffer = fs.readFileSync(inFile)
   } catch (e) {
-    console.error('Error Opening', filename)
+    console.error('Error Opening', inFile)
     throw e
   }
-  return unpack(buffer, folder)
+  return unpack(buffer, outFile)
 }
-function pack (filename, folder) {
-  var outAnm = fs.openSync('out.anm', 'w')
+function pack (inFile, outFile) {
+  var outAnm = fs.openSync(outFile, 'w')
 
-  var currentFile = path.join(folder, 'anmcmd.js')
+  var currentFile = inFile
   var sourceJS = fs.readFileSync(currentFile, 'utf-8')
   var result = esprima.parse(sourceJS)
   try {

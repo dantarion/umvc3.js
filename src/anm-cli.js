@@ -6,14 +6,14 @@ const anm = require('./filetypes/anm')
 const program = require('commander')
 const version = require(path.join(__dirname, '../package.json')).version
 
-program.command('extract <file> <foldername>').description('Extract JS source from .anm file').action((file, foldername) => {
-  console.log(`Extracting ${file} into working/${foldername}`)
-  anm.unpackAnmFile(file, foldername)
+program.command('extract <inFile> <outFile>').description('Extract JS source from .anm file').action((inFile, outFile) => {
+  console.log(`Extracting ${inFile} into ${outFile}`)
+  anm.unpackFile(inFile, outFile)
 })
 
-program.command('compile <foldername> <file>').description('Compile folder into .anm file').action((file, foldername) => {
-  console.log(`Compiling working/${foldername} into ${file}`)
-  anm.packAnm(file, foldername)
+program.command('compile <inFile> <outFile>').description('Compile JS file into .anm file').action((inFile, outFile) => {
+  console.log(`Compiling ${inFile} into ${outFile}`)
+  anm.pack(inFile, outFile)
 })
 
 program.command('test').description('Test Suite. Extracts and compiles Ryu\'s file to test rebuilding .anm').action(() => {
