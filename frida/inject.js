@@ -1,4 +1,6 @@
 console.log("running")
+
+/*
 var mem = Memory.alloc(0x1000);
 var vTables = ["0x140B0F8B8","0x140A6B2A8","0x140A70408","0x140A70328","0x140A70280","0x140A701B8","0x140A700E8","0x140A6FFB8","0x140A6FED8","0x140A6FE20","0x140B11800"]
 vTables.forEach((vtableOffset) =>{
@@ -30,16 +32,14 @@ if(vtableOffset === "0x140B11800"){
     }
   });
 })
-/*
+*/
 var loadedFiles = {};
 var allocations = {};
 var f = new NativeFunction(ptr("0x1400511D0"), 'void', ['pointer','pointer']);
 var mem = Memory.alloc(0x1000)
-console.log(mem);
-f(ptr('0x137B06A0'),mem)
 //140295380
 // Resource Load
-/*
+
 Interceptor.attach(ptr("0x140295380"), {
   onEnter: function(args) {
     var resource = {};
@@ -68,7 +68,7 @@ rpc.exports = {
   sendFile: function(filename,data){
 
     if(!loadedFiles[filename]){
-      //console.log("this file isn't loaded.",filename);
+      console.log("this file isn't loaded.",filename);
       return;
     }
 

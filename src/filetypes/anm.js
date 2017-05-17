@@ -254,10 +254,10 @@ function unpack (inBuffer, outFile) {
     format: {
       indent: {
         style: '  '
-      }
+      },
     },
-    comment: true,
-    verbatim: 'raw'
+    verbatim: 'raw',
+
   })
   // Prepare output folder
   mkdirp.sync(path.dirname(outFile))

@@ -5,15 +5,16 @@ const watch = require('node-watch')
 const co = require('co')
 const path = require('path')
 const mkdirp = require('mkdirp')
+const anm = require('./filetypes/anm')
 var api
 var timeouts = {}
 
-const MOD_PATH = path.join(process.cwd(), 'mods')
-mkdirp(MOD_PATH, function () {})
+const MOD_PATH = path.join(process.cwd(), 'working')
+mkdirp(MOD_PATH, function() {})
 watch(MOD_PATH, {
   recursive: true,
   followSymLinks: true
-}, function (event, filename) {
+}, function(event, filename) {
   if (fs.lstatSync(filename).isDirectory()) {
     return
   }
@@ -21,13 +22,19 @@ watch(MOD_PATH, {
   if (timeouts[filename]) {
     clearTimeout(timeouts[filename])
   }
-  timeouts[filename] = setTimeout(function () {
-    console.log(filename, event, 'changed..sending.')
+  timeouts[filename] = setTimeout(function() {
+    if (!filename.endsWith('.js'))
+      return
+
+    console.log(filename, event, 'changed..compiling.')
+
     try {
-      var data = fs.readFileSync(filename)
-      filename = filename.replace(MOD_PATH + '\\', '')
+      var buffer = anm.pack(filename, filename + '.anm')
+      var data = fs.readFileSync(filename + '.anm')
+      filename = filename.replace(MOD_PATH + '\\', '').replace('.js', '').replace('.', '\\')
+      filename = 'chr\\'+filename
       console.log('<<<<<<<<<<<<<<<<< sending replacement file', filename)
-      api.sendFile(filename.slice(0, -4), data)
+      api.sendFile(filename, data)
     } catch (e) {
       console.error("Couldn't load", filename)
     }
@@ -43,20 +50,24 @@ co(function * () {
   console.log('script injected:', script)
   yield script.load()
   api = yield script.getExports()
-  script.events.listen('message', function (message, data) {
+  script.events.listen('message', function(message, data) {
     if (!message.payload) {
       console.log(message)
       return
     }
     try {
-      var fdata = fs.readFileSync(path.join(MOD_PATH, message.payload[1]))
-      console.log('<<<<<<<<<<<<<<<<< sending replacement file', message.payload[1])
+
+      var filename = message.payload[1].replace('chr\\', '').replace('\\', '.')
+      var lfilename = path.join(MOD_PATH, filename);
+      anm.pack(lfilename.slice(0, -4) + ".js", lfilename)
+      var fdata = fs.readFileSync(lfilename)
+      console.log('<<<<<<<<<<<<<<<<< sending replacement file', filename)
       api.sendFile(message.payload[1].slice(0, -4), fdata)
     } catch (e) {
-      console.error("Couldn't load", path.join(MOD_PATH, message.payload[1]))
+      console.error("Couldn't load", path.join(MOD_PATH, filename))
     }
   })
   console.log('script loaded! WE IN THERE')
-}).catch(function (error) {
+}).catch(function(error) {
   console.log('frida.re error:', error.message)
 })

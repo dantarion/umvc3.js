@@ -29,6 +29,8 @@ program.command('test').description('Test Suite. Extracts all .anm to .js files'
       try {
         console.log(outFilename)
         anm.unpackFile(filename, 'working/' + outFilename)
+        // anm.pack('working/' + outFilename, 'tmp.anm')
+        // anm.unpackFile('tmp.anm', 'rebuilt/' + outFilename)
       } catch (e) {
         console.log('error', e)
       }
