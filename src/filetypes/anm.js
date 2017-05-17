@@ -9,12 +9,12 @@ const esprima = require('esprima')
 const printf = require('printf')
 
 const common = require('./common')
-
+const db = require('../commandDB.json')
 const AnmEntryHeader = _.struct([_.uint32le('functionCount'), _.uint32le('unknown2'), _.uint32le('unknown3'), _.uint32le('unknown4')])
 const AnmFunctionHeader = _.struct([_.int32le('frame'), _.uint32le('offset')])
 const AnmFunctionHeader2 = _.struct([_.int32le('frame'), _.uint32le('commandCount'), _.uint32le('unknown3'), _.uint32le('unknown4')])
 const AnmCommand = _.struct([_.uint32le('group'), _.uint32le('id'), _.uint32le('dataCount'), _.uint32le('unknown4')])
-
+var usage = {}
 function unpack (inBuffer, outFile) {
   const astRoot = {
     type: 'Program',
@@ -39,32 +39,50 @@ function unpack (inBuffer, outFile) {
   for (let i = 0; i < entryHeader.tableCount; i++) {
     const tableEntry = common.CommonTableEntry.unpack(inBuffer.slice(0x10 + i * 8))
     const tableEntryNext = common.CommonTableEntry.unpack(inBuffer.slice(0x10 + (i + 1) * 8))
+    const anmHeader = AnmEntryHeader.unpack(inBuffer.slice(tableEntry.offset))
+    assert(anmHeader.unknown3 === 0, 'Is this really constant? unknown3')
+    assert(anmHeader.unknown4 === 0, 'Is this really constant? unknown4')
+
+    const parentCall = {
+      leadingComments: [
+        {
+          type: 'Line',
+          value: printf('0x%X', tableEntry.offset)
+        }
+      ],
+      'type': 'ExpressionStatement',
+      'expression': {
+        'type': 'CallExpression',
+        'callee': {
+          'type': 'Identifier',
+          'name': 'defineState'
+        },
+        'arguments': [
+          {
+            'type': 'Literal',
+            'value': tableEntry.id,
+            'raw': printf('0x%03X', tableEntry.id)
+          }, {
+            'type': 'Literal',
+            'value': anmHeader.unknown2
+          }
+        ]
+      }
+    }
     const astFunction = {
       type: 'FunctionDeclaration',
-      id: {
-        type: 'Identifier',
-        name: printf('state%03X', tableEntry.id)
-      },
+      id: null,
       params: [],
       body: {
         type: 'BlockStatement',
         body: []
       },
       generator: false,
-      expression: false,
-      leadingComments: [
-        {
-          type: 'Line',
-          value: printf("0x%X", tableEntry.offset),
-          range: [0, 59]
-        }
-      ]
+      expression: false
     }
-    astRoot.body.push(astFunction)
+    parentCall.expression.arguments.push(astFunction)
+    astRoot.body.push(parentCall)
 
-    const anmHeader = AnmEntryHeader.unpack(inBuffer.slice(tableEntry.offset))
-    assert(anmHeader.unknown3 === 0, 'Is this really constant? unknown3')
-    assert(anmHeader.unknown4 === 0, 'Is this really constant? unknown4')
     // console.log('\t', anmHeader)
     for (let j = 0; j < anmHeader.functionCount + 1; j++) {
       // Read Function Header
@@ -93,14 +111,13 @@ function unpack (inBuffer, outFile) {
         const data = _.struct([_.int32le('offset'), _.uint32le('unknown1')]).unpack(inBuffer.slice(tableEntry.offset + functionHeader.offset + 0x10 + n * 8))
         const data2 = _.struct([_.int32le('offset'), _.uint32le('unknown1')]).unpack(inBuffer.slice(tableEntry.offset + functionHeader.offset + 0x10 + (n + 1) * 8))
         var dataSize = data2.offset - data.offset - 0x10
-        if (n === secondaryData.commandCount-1) {
+        if (n === secondaryData.commandCount - 1) {
           dataSize = functionHeaderNext.offset - functionHeader.offset - data.offset - 0x10
           if (j === anmHeader.functionCount + 1 - 1) {
             dataSize = tableEntryNext.offset - functionHeader.offset - data.offset - 0x10
           }
         }
         const command = AnmCommand.unpack(inBuffer.slice(tableEntry.offset + functionHeader.offset + data.offset))
-        var hasStr = dataSize / command.dataCount !== 8
         // console.log('\t\t\t', command)
         var astCall = {
           type: 'ExpressionStatement',
@@ -112,33 +129,120 @@ function unpack (inBuffer, outFile) {
             },
             arguments: []
           },
-          leadingComments: [
-            {
-              type: 'Line',
-              value: printf('0x%X - %s', tableEntry.offset + functionHeader.offset + data.offset, JSON.stringify([dataSize.toString(16), hasStr, functionHeaderNext.offset.toString(16)])),
-              range: [0, 59]
-            }
-          ]
+          leadingComments: []
         }
         astLabel.body.body.push(astCall)
-        var params = []
+        var paramTypes = []
+        var paramData = 0
+        var paramEnd = tableEntry.offset + functionHeader.offset + data.offset + 0x10 + command.dataCount * 4
+
         if (command.dataCount > 0) {
-          params = _.uint32le(command.dataCount * 2).unpack(inBuffer.slice(tableEntry.offset + functionHeader.offset + data.offset + 0x10))
+          paramTypes = _.uint32le(command.dataCount).unpack(inBuffer.slice(tableEntry.offset + functionHeader.offset + data.offset + 0x10))
         }
-        var astParams = params.map((param) => {
-          if (typeof param === 'string') {
+        astCall.leadingComments[0] = {
+          type: 'Line',
+          value: JSON.stringify(paramTypes),
+          range: [0, 59]
+        }
+        usage[astCall.expression.callee.name] = paramTypes
+        var astParams = paramTypes.map((paramType, index) => {
+          var retVal = -1
+          if (paramType === 0x1) {
+            retVal = _.int8(1).unpack(inBuffer.slice(paramEnd + paramData))[0]
+            paramData += 1
             return {
               'type': 'Literal',
-              'value': param
-            }
-          } else {
-            return {
-              'type': 'Literal',
-              'value': param,
+              'value': retVal,
               'raw': {
-                content: printf('0x%X', param),
+                content: retVal >= 0
+                  ? printf('0x%X', retVal)
+                  : printf('-0x%X', -retVal),
                 precedence: escodegen.Precedence.Primary
               }
+            }
+          }
+          if (paramType === 12) {
+            retVal = _.float32le(3).unpack(inBuffer.slice(paramEnd + paramData))
+            paramData += 12
+            return {
+              'type': 'ArrayExpression',
+              'elements': retVal.map((val) => {
+                return {
+                  'type': 'Literal',
+                  'value': val,
+                  'raw': {
+                    content: val >= 0
+                      ? printf('%f', val)
+                      : printf('-%f', -val),
+                    precedence: escodegen.Precedence.Primary
+                  }
+                }
+              })
+            }
+          }
+          if (paramType === 13) {
+            retVal = _.float32le(4).unpack(inBuffer.slice(paramEnd + paramData))
+            paramData += 16
+            return {
+              'type': 'ArrayExpression',
+              'elements': retVal.map((val) => {
+                return {
+                  'type': 'Literal',
+                  'value': val,
+                  'raw': {
+                    content: val >= 0
+                      ? printf('%f', val)
+                      : printf('-%f', -val),
+                    precedence: escodegen.Precedence.Primary
+                  }
+                }
+              })
+            }
+          }
+          if (paramType === 0x5) {
+            retVal = _.int32le(1).unpack(inBuffer.slice(paramEnd + paramData))[0]
+            paramData += 4
+            return {
+              'type': 'Literal',
+              'value': retVal,
+              'raw': {
+                content: retVal >= 0
+                  ? printf('0x%X', retVal)
+                  : printf('-0x%X', -retVal),
+                precedence: escodegen.Precedence.Primary
+              }
+            }
+          }
+          if (paramType === 6) {
+            retVal = _.float32le(1).unpack(inBuffer.slice(paramEnd + paramData))[0]
+            paramData += 4
+            return {
+              'type': 'Literal',
+              'value': retVal,
+              'raw': {
+                content: printf('%f', retVal),
+                precedence: escodegen.Precedence.Primary
+              }
+            }
+          }
+          if (paramType === 0x7) {
+            retVal = _.char(64).unpack(inBuffer.slice(paramEnd + paramData))
+            paramData += 64
+            return {'type': 'Literal', 'value': retVal}
+          }
+          if (paramType === 0x10) {
+            retVal = _.char(64).unpack(inBuffer.slice(paramEnd + paramData))
+            paramData += 64
+            return {'type': 'Literal', 'value': retVal}
+          }
+          retVal = _.uint32le(1).unpack(inBuffer.slice(paramEnd + paramData))[0]
+          paramData += 4
+          return {
+            'type': 'Literal',
+            'value': retVal,
+            'raw': {
+              content: printf('0x%X', retVal),
+              precedence: escodegen.Precedence.Primary
             }
           }
         })
@@ -190,16 +294,17 @@ function pack (inFile, outFile) {
     var headerData = common.CommonHeaderStruct.pack(header)
     fs.writeSync(outAnm, headerData, 0, headerData.length, 0)
     var currentOffset = dataStart
-    result.body.forEach((stateExpr, index) => {
-      assert(stateExpr.type === 'FunctionDeclaration')
-      assert(stateExpr.id.name.startsWith('state'))
+    result.body.forEach((expressExpression, index) => {
+      assert(expressExpression.type === 'ExpressionStatement')
+      var stateExpr = expressExpression.expression.arguments[2];
+      assert(stateExpr.type === 'FunctionExpression')
       var state = {
-        id: parseInt(stateExpr.id.name.substr(5), 16),
+        id: expressExpression.expression.arguments[0].value,
         offset: currentOffset
       }
       var anmentryheader = {
         functionCount: stateExpr.body.body.length - 1,
-        unknown2: -1
+        unknown2: expressExpression.expression.arguments[1].value
       }
       var entryBase = currentOffset
       currentOffset += 0x10
@@ -218,7 +323,7 @@ function pack (inFile, outFile) {
         } else {
           throw new Error('Labels can be either be "init" or "frame_%d"')
         }
-        anmentryheader.unknown2 = Math.max(anmentryheader.unknown2, frame.frame)
+
         frame.offset = currentOffset - state.offset
         rawData = AnmFunctionHeader2.pack(frame)
         fs.writeSync(outAnm, rawData, 0, rawData.length, currentOffset)
@@ -231,8 +336,9 @@ function pack (inFile, outFile) {
           var call = {
             group: 0,
             id: 0,
-            dataCount: callExpr.expression.arguments.length / 2
+            dataCount: callExpr.expression.arguments.length
           }
+
           call.group = parseInt(callExpr.expression.callee.name.substr(1, 2), 16)
           call.id = parseInt(callExpr.expression.callee.name.substr(4), 16)
           rawData = AnmCommand.pack(call)
@@ -242,9 +348,77 @@ function pack (inFile, outFile) {
           rawData = _.uint32le(1).pack([currentOffset - baseOffset])
           fs.writeSync(outAnm, rawData, 0, rawData.length, baseOffset + 8 * index)
 
-          callExpr.expression.arguments.forEach((argumentExpr) => {
-            if (argumentExpr.type === 'Literal') {
-              rawData = _.uint32le(1).pack([argumentExpr.value])
+          var types = db[callExpr.expression.callee.name]
+          rawData = _.uint32le(types.length).pack(types)
+          fs.writeSync(outAnm, rawData, 0, rawData.length, currentOffset)
+          currentOffset += rawData.length
+          callExpr.expression.arguments.forEach((argumentExpr, index) => {
+            var type = types[index]
+            var val
+            if (type === 6) {
+              if (argumentExpr.type === 'UnaryExpression') {
+                val = -argumentExpr.argument.value
+              } else {
+                val = argumentExpr.value
+              }
+              rawData = _.float32le(1).pack([val])
+              fs.writeSync(outAnm, rawData, 0, rawData.length, currentOffset)
+              currentOffset += rawData.length
+            } else if (type === 0x1) {
+              if (argumentExpr.type === 'UnaryExpression') {
+                val = -argumentExpr.argument.value
+              } else {
+                val = argumentExpr.value
+              }
+              rawData = _.int8(1).pack([val])
+              fs.writeSync(outAnm, rawData, 0, rawData.length, currentOffset)
+              currentOffset += rawData.length
+            } else if (type === 0x5) {
+              if (argumentExpr.type === 'UnaryExpression') {
+                val = -argumentExpr.argument.value
+              } else {
+                val = argumentExpr.value
+              }
+              rawData = _.int32le(1).pack([val])
+              fs.writeSync(outAnm, rawData, 0, rawData.length, currentOffset)
+              currentOffset += rawData.length
+            } else if (type === 12) {
+              var tmp = argumentExpr.elements.map((el) => {
+                if (el.type === 'UnaryExpression') {
+                  return -el.argument.value
+                } else {
+                  return el.value
+                }
+              })
+              rawData = _.float32le(3).pack(tmp)
+              fs.writeSync(outAnm, rawData, 0, rawData.length, currentOffset)
+              currentOffset += rawData.length
+            } else if (type === 13) {
+              tmp = argumentExpr.elements.map((el) => {
+                if (el.type === 'UnaryExpression') {
+                  return -el.argument.value
+                } else {
+                  return el.value
+                }
+              })
+              rawData = _.float32le(4).pack(tmp)
+              fs.writeSync(outAnm, rawData, 0, rawData.length, currentOffset)
+              currentOffset += rawData.length
+            } else if (type === 0x7) {
+              rawData = _.char(64).pack(argumentExpr.value)
+              fs.writeSync(outAnm, rawData, 0, rawData.length, currentOffset)
+              currentOffset += rawData.length
+            } else if (type === 0x10) {
+              rawData = _.char(64).pack(argumentExpr.value)
+              fs.writeSync(outAnm, rawData, 0, rawData.length, currentOffset)
+              currentOffset += rawData.length
+            } else {
+              if (argumentExpr.type === 'UnaryExpression') {
+                val = -argumentExpr.argument.value
+              } else {
+                val = argumentExpr.value
+              }
+              rawData = _.uint32le(1).pack([val])
               fs.writeSync(outAnm, rawData, 0, rawData.length, currentOffset)
               currentOffset += rawData.length
             }
@@ -266,5 +440,6 @@ function pack (inFile, outFile) {
 module.exports = {
   pack: pack,
   unpackFile: unpackFile,
-  unpack: unpack
+  unpack: unpack,
+  usage: usage
 }
