@@ -21,7 +21,7 @@ const CliEntryBlock = _.struct([
   _.int32le('unknown8')
 ])
 
-function unpack (buffer, folder) {
+function unpack (buffer, outFile) {
   // Read Header
   const entryHeader = common.CommonHeaderStruct.unpack(buffer, 0)
   const entries = {}
@@ -44,8 +44,8 @@ function unpack (buffer, folder) {
   }
 
   // Prepare output folder
-  mkdirp.sync(path.join(process.cwd(), 'working', folder))
-  const outJS = fs.openSync(path.join(process.cwd(), 'working', folder, 'atkcollision.json'), 'w')
+  mkdirp.sync(path.dirname(outFile))
+  const outJS = fs.openSync(outFile, 'w')
   fs.appendFileSync(outJS, JSON.stringify(entries, null, 2))
   fs.closeSync(outJS)
   return entries

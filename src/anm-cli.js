@@ -1,6 +1,10 @@
 const path = require('path')
 const fs = require('fs')
 const anm = require('./filetypes/anm')
+const ccm = require('./filetypes/ccm')
+const cba = require('./filetypes/cba')
+const chs = require('./filetypes/chs')
+const cli = require('./filetypes/cli')
 
 const program = require('commander')
 const glob = require('glob')
@@ -18,14 +22,16 @@ program.command('compile <inFile> <outFile>').description('Compile JS file into 
 
 program.command('test').description('Test Suite. Extracts all .anm to .js files').action(() => {
   console.log('Running test suite')
+
   var base = path.join(__dirname, '..', 'out', 'chr')
+
   glob(path.join(base, '**/*.anm'), (err, filenames) => {
     if (err) {
       throw err
     }
     filenames.forEach((filename) => {
       // console.log(filename)
-      var outFilename = path.relative(base, filename).replace('.anm', '.js').split(path.sep).join('.')
+      var outFilename = path.relative(base, filename) + '.js' // .split(path.sep).join(path.sep)
       try {
         console.log(outFilename)
         anm.unpackFile(filename, 'working/' + outFilename)
@@ -37,6 +43,81 @@ program.command('test').description('Test Suite. Extracts all .anm to .js files'
     })
     console.log('Usage')
     fs.writeFileSync('_commandDB.json', JSON.stringify(anm.usage, Object.keys(anm.usage).sort(), 2))
+  })
+
+  //CCM
+
+  glob(path.join(base, '**/*.ccm'), (err, filenames) => {
+    if (err) {
+      throw err
+    }
+    filenames.forEach((filename) => {
+      // console.log(filename)
+      var outFilename = path.relative(base, filename) + '.json'// .split(path.sep).join(path.sep)
+      try {
+        console.log(outFilename)
+        ccm.unpackFile(filename, 'working/' + outFilename)
+        // anm.pack('working/' + outFilename, 'tmp.anm')
+        // anm.unpackFile('tmp.anm', 'rebuilt/' + outFilename)
+      } catch (e) {
+        console.log('error', e)
+      }
+    })
+  })
+
+  //CBA
+
+  glob(path.join(base, '**/*.cba'), (err, filenames) => {
+    if (err) {
+      throw err
+    }
+    filenames.forEach((filename) => {
+      // console.log(filename)
+      var outFilename = path.relative(base, filename) + '.json' // .split(path.sep).join(path.sep)
+      try {
+        console.log(outFilename)
+        cba.unpackFile(filename, 'working/' + outFilename)
+        // anm.pack('working/' + outFilename, 'tmp.anm')
+        // anm.unpackFile('tmp.anm', 'rebuilt/' + outFilename)
+      } catch (e) {
+        console.log('error', e)
+      }
+    })
+  })
+
+  glob(path.join(base, '**/*.chs'), (err, filenames) => {
+    if (err) {
+      throw err
+    }
+    filenames.forEach((filename) => {
+      // console.log(filename)
+      var outFilename = path.relative(base, filename) + '.json' // .split(path.sep).join(path.sep)
+      try {
+        console.log(outFilename)
+        chs.unpackFile(filename, 'working/' + outFilename)
+        // anm.pack('working/' + outFilename, 'tmp.anm')
+        // anm.unpackFile('tmp.anm', 'rebuilt/' + outFilename)
+      } catch (e) {
+        console.log('error', e)
+      }
+    })
+  })
+  glob(path.join(base, '**/*.cli'), (err, filenames) => {
+    if (err) {
+      throw err
+    }
+    filenames.forEach((filename) => {
+      // console.log(filename)
+      var outFilename = path.relative(base, filename) + '.json' // .split(path.sep).join(path.sep)
+      try {
+        console.log(outFilename)
+        cli.unpackFile(filename, 'working/' + outFilename)
+        // anm.pack('working/' + outFilename, 'tmp.anm')
+        // anm.unpackFile('tmp.anm', 'rebuilt/' + outFilename)
+      } catch (e) {
+        console.log('error', e)
+      }
+    })
   })
 })
 program.command('testRebuild').description('Test Rebuild Suite. Extracts and compiles Ryu\'s file to test rebuilding .anm').action(() => {

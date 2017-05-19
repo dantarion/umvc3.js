@@ -23,15 +23,15 @@ watch(MOD_PATH, {
     clearTimeout(timeouts[filename])
   }
   timeouts[filename] = setTimeout(function() {
-    if (!filename.endsWith('.js'))
+    if (!filename.endsWith('.anm.js'))
       return
 
     console.log(filename, event, 'changed..compiling.')
 
     try {
-      var buffer = anm.pack(filename, filename + '.anm')
-      var data = fs.readFileSync(filename + '.anm')
-      filename = filename.replace(MOD_PATH + '\\', '').replace('.js', '').replace('.', '\\')
+      var buffer = anm.pack(filename, filename.replace('.js',''))
+      var data = fs.readFileSync(filename.replace('.js',''))
+      filename = filename.replace(MOD_PATH + '\\', '').replace('.anm.js', '')
       filename = 'chr\\'+filename
       console.log('<<<<<<<<<<<<<<<<< sending replacement file', filename)
       api.sendFile(filename, data)
@@ -57,9 +57,9 @@ co(function * () {
     }
     try {
 
-      var filename = message.payload[1].replace('chr\\', '').replace('\\', '.')
+      var filename = message.payload[1].replace('chr\\', '').replace('\\', '/')
       var lfilename = path.join(MOD_PATH, filename);
-      anm.pack(lfilename.slice(0, -4) + ".js", lfilename)
+      anm.pack(lfilename + ".js", lfilename)
       var fdata = fs.readFileSync(lfilename)
       console.log('<<<<<<<<<<<<<<<<< sending replacement file', filename)
       api.sendFile(message.payload[1].slice(0, -4), fdata)

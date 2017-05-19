@@ -64,7 +64,7 @@ const CcmBlockTypes = {
   0x3F: 'CHAIN_STATE',
   0x49: 'unknown (related to advancing guard)'
 }
-function unpack (buffer, folder) {
+function unpack (buffer, outFile) {
   var graphViz = fs.openSync('out.dot', 'w')
   fs.writeSync(graphViz, 'digraph { \n')
   fs.writeSync(graphViz, '  graph [pad=".5", nodesep="1", ranksep="1", overlap="scalex", splines="false"];\n')
@@ -102,8 +102,8 @@ function unpack (buffer, folder) {
   fs.writeSync(graphViz, '}\n')
   fs.closeSync(graphViz)
   // Prepare output folder
-  mkdirp.sync(path.join(process.cwd(), 'working', folder))
-  const outJS = fs.openSync(path.join(process.cwd(), 'working', folder, 'ccm.json'), 'w')
+  mkdirp.sync(path.dirname(outFile))
+  const outJS = fs.openSync(outFile, 'w')
   fs.appendFileSync(outJS, JSON.stringify(entries, null, 2))
   fs.closeSync(outJS)
   return entries
@@ -124,5 +124,3 @@ module.exports = {
   unpackFile: unpackFile,
   unpack: unpack
 }
-
-unpackFile('out/chr/Ryu/cmdcombo.ccm', 'Ryu')

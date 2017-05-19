@@ -19,7 +19,7 @@ const CBAEntryHeader = _.struct([
 const Enum = require('enum')
 const Input = new Enum({'NONE': 0, 'DOWN': 8, 'L': 16, 'M': 32, 'H': 64, 'S': 128, 'SELECT': 0x100000})
 const State = new Enum({'NONE': 0, 'AIR': 32})
-function unpack (buffer, folder) {
+function unpack (buffer, outFile) {
   // Read Header
   const entryHeader = common.CommonHeaderStruct.unpack(buffer, 0)
   const entries = {}
@@ -44,8 +44,8 @@ function unpack (buffer, folder) {
   }
 
   // Prepare output folder
-  mkdirp.sync(path.join(process.cwd(), 'working', folder))
-  const outJS = fs.openSync(path.join(process.cwd(), 'working', folder, 'baseact.json'), 'w')
+  mkdirp.sync(path.dirname(outFile))
+  const outJS = fs.openSync(outFile, 'w')
   fs.appendFileSync(outJS, JSON.stringify(entries, null, 2))
   fs.closeSync(outJS)
   return entries
