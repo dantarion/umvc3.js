@@ -10,11 +10,11 @@ var api
 var timeouts = {}
 
 const MOD_PATH = path.join(process.cwd(), 'working')
-mkdirp(MOD_PATH, function() {})
+mkdirp(MOD_PATH, function () {})
 watch(MOD_PATH, {
   recursive: true,
   followSymLinks: true
-}, function(event, filename) {
+}, function (event, filename) {
   if (fs.lstatSync(filename).isDirectory()) {
     return
   }
@@ -22,17 +22,16 @@ watch(MOD_PATH, {
   if (timeouts[filename]) {
     clearTimeout(timeouts[filename])
   }
-  timeouts[filename] = setTimeout(function() {
-    if (!filename.endsWith('.anm.js'))
-      return
+  timeouts[filename] = setTimeout(function () {
+    if (!filename.endsWith('.anm.js')) { return }
 
     console.log(filename, event, 'changed..compiling.')
 
     try {
-      var buffer = anm.pack(filename, filename.replace('.js',''))
-      var data = fs.readFileSync(filename.replace('.js',''))
+      var buffer = anm.pack(filename, filename.replace('.js', ''))
+      var data = fs.readFileSync(filename.replace('.js', ''))
       filename = filename.replace(MOD_PATH + '\\', '').replace('.anm.js', '')
-      filename = 'chr\\'+filename
+      filename = 'chr\\' + filename
       console.log('<<<<<<<<<<<<<<<<< sending replacement file', filename)
       api.sendFile(filename, data)
     } catch (e) {
@@ -50,16 +49,15 @@ co(function * () {
   console.log('script injected:', script)
   yield script.load()
   api = yield script.getExports()
-  script.events.listen('message', function(message, data) {
+  script.events.listen('message', function (message, data) {
     if (!message.payload) {
       console.log(message)
       return
     }
     try {
-
       var filename = message.payload[1].replace('chr\\', '').replace('\\', '/')
-      var lfilename = path.join(MOD_PATH, filename);
-      anm.pack(lfilename + ".js", lfilename)
+      var lfilename = path.join(MOD_PATH, filename)
+      anm.pack(lfilename + '.js', lfilename)
       var fdata = fs.readFileSync(lfilename)
       console.log('<<<<<<<<<<<<<<<<< sending replacement file', filename)
       api.sendFile(message.payload[1].slice(0, -4), fdata)
@@ -68,6 +66,6 @@ co(function * () {
     }
   })
   console.log('script loaded! WE IN THERE')
-}).catch(function(error) {
+}).catch(function (error) {
   console.log('frida.re error:', error.message)
 })

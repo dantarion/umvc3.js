@@ -5,7 +5,8 @@ const ccm = require('./filetypes/ccm')
 const cba = require('./filetypes/cba')
 const chs = require('./filetypes/chs')
 const cli = require('./filetypes/cli')
-
+const csp = require('./filetypes/csp')
+const ati = require('./filetypes/ati')
 const program = require('commander')
 const glob = require('glob')
 const version = '0.1.0'
@@ -45,7 +46,7 @@ program.command('test').description('Test Suite. Extracts all .anm to .js files'
     fs.writeFileSync('_commandDB.json', JSON.stringify(anm.usage, Object.keys(anm.usage).sort(), 2))
   })
 
-  //CCM
+  // CCM
 
   glob(path.join(base, '**/*.ccm'), (err, filenames) => {
     if (err) {
@@ -65,7 +66,7 @@ program.command('test').description('Test Suite. Extracts all .anm to .js files'
     })
   })
 
-  //CBA
+  // CBA
 
   glob(path.join(base, '**/*.cba'), (err, filenames) => {
     if (err) {
@@ -112,6 +113,40 @@ program.command('test').description('Test Suite. Extracts all .anm to .js files'
       try {
         console.log(outFilename)
         cli.unpackFile(filename, 'working/' + outFilename)
+        // anm.pack('working/' + outFilename, 'tmp.anm')
+        // anm.unpackFile('tmp.anm', 'rebuilt/' + outFilename)
+      } catch (e) {
+        console.log('error', e)
+      }
+    })
+  })
+  glob(path.join(base, '**/*.csp'), (err, filenames) => {
+    if (err) {
+      throw err
+    }
+    filenames.forEach((filename) => {
+      // console.log(filename)
+      var outFilename = path.relative(base, filename) + '.json' // .split(path.sep).join(path.sep)
+      try {
+        console.log(outFilename)
+        csp.unpackFile(filename, 'working/' + outFilename)
+        // anm.pack('working/' + outFilename, 'tmp.anm')
+        // anm.unpackFile('tmp.anm', 'rebuilt/' + outFilename)
+      } catch (e) {
+        console.log('error', e)
+      }
+    })
+  })
+  glob(path.join(base, '**/*.ati'), (err, filenames) => {
+    if (err) {
+      throw err
+    }
+    filenames.forEach((filename) => {
+      // console.log(filename)
+      var outFilename = path.relative(base, filename) + '.json' // .split(path.sep).join(path.sep)
+      try {
+        console.log(outFilename)
+        ati.unpackFile(filename, 'working/' + outFilename)
         // anm.pack('working/' + outFilename, 'tmp.anm')
         // anm.unpackFile('tmp.anm', 'rebuilt/' + outFilename)
       } catch (e) {

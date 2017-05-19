@@ -75,7 +75,58 @@ const EntryHeader = _.struct([
     _.int32le('unknown24'),
     _.int32le('unknown28'),
     _.int32le('unknown2C')
-  ], 3)
+  ], 3),
+  _.int32le('unknown168'),
+  _.int32le('unknown16C'),
+  _.int32le('unknown170'),
+  _.int32le('unknown174'),
+  _.int32le('unknown178'),
+  _.int32le('unknown17C'),
+  _.int32le('unknown180'),
+  _.int32le('unknown184'),
+  _.float32le('unknown188'),
+  _.float32le('unknown18C'),
+  _.float32le('unknown190'),
+  _.float32le('unknown194'),
+  _.int32le('unknown198'),
+  _.int32le('unknown19C'),
+  _.int32le('unknown1A0'),
+  _.int32le('unknown1A4'),
+  _.int32le('unknown1A8'),
+  _.int32le('unknown1AC'),
+  _.int32le('unknown1B0'),
+  _.int32le('unknown1B4'),
+  _.struct('unk', [
+    _.float32le('unknown1B8'),
+    _.float32le('unknown1BC'),
+    _.float32le('unknown1C0'),
+    _.float32le('unknown1C4'),
+    _.int32le('unknown1C8'),
+    _.float32le('unknown1CC'),
+    _.float32le('unknown1D0'),
+    _.float32le('unknown1D4'),
+    _.float32le('unknown1D8')
+  ], 2),
+  _.float32le('unknow200'),
+  _.float32le('unknown204'),
+  _.int32le('unknown208'),
+  _.int32le('unknown20C'),
+  _.float32le('unknown210'),
+  _.float32le('unknown214'),
+  _.float32le('unknown218'),
+  _.float32le('unknown21C'),
+  _.float32le('unknown220'),
+  _.float32le('unknown224'),
+  _.float32le('unknown228'),
+  _.float32le('unknown22C'),
+  _.float32le('unknown230'),
+  _.float32le('unknown234'),
+  _.float32le('unknown238'),
+  _.float32le('unknown23C'),
+  _.float32le('unknown240'),
+  _.float32le('unknown244'),
+  _.float32le('unknown248')
+
 ])
 function unpack (buffer, outFile) {
   // Read Header
@@ -89,6 +140,7 @@ function unpack (buffer, outFile) {
   for (let i = 0; i < entryHeader.tableCount; i++) {
     const tableEntry = common.CommonTableEntry.unpack(buffer.slice(0x10 + i * 8))
     const cbaHeader = EntryHeader.unpack(buffer.slice(tableEntry.offset))
+    cbaHeader.size = EntryHeader.size.toString(16)
     entries[printf('0x%0x', tableEntry.id)] = cbaHeader
   }
 
@@ -115,5 +167,3 @@ module.exports = {
   unpackFile: unpackFile,
   unpack: unpack
 }
-
-unpackFile('out/chr/Ryu/status.chs', 'Ryu')

@@ -19,9 +19,10 @@ def extract(filename):
             ext = "anm"
 
         name = name+"." +ext
-        outdir = "out/"+os.path.dirname(name)
+        name = name.replace("\\",os.sep)
+        outdir = os.path.join("out",os.path.dirname(name))
         if not os.path.exists(outdir): os.makedirs(outdir)
-        outfile = open("out/"+name,"wb")
+        outfile = open(os.path.join("out",name),"wb")
         outfile.write(realdata)
         outfile.close()
 #extract("archive\\0000_00.arc")
@@ -30,7 +31,7 @@ for filename in os.listdir("archive"):
     if ".arc" not in filename: continue
     if "param" not in filename: continue
     print filename
-    extract("archive\\"+filename)
+    extract(os.path.join('archive',filename))
     #dummy = open("dummyarc/"+filename,"wb")
     #dummy.write("ARC\x00\x07\x00\x00\x00")
     #dummy.close()

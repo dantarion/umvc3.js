@@ -35,8 +35,10 @@ function unpack (buffer, outFile) {
     cbaHeader._end = printf('0x%0x', tableEntry.offset + CBAEntryHeader.size)
     cbaHeader._state = printf('0x%x', cbaHeader.state)
     cbaHeader._button = printf('0x%x', cbaHeader.button)
+    cbaHeader._leniency = printf('0x%x', cbaHeader.leniency)
     cbaHeader._direction = printf('0x%x', cbaHeader.direction)
     cbaHeader.button = Input.get(cbaHeader.button)
+    cbaHeader.leniency = Input.get(cbaHeader.leniency)
     cbaHeader.state = State.get(cbaHeader.state)
     cbaHeader.direction = Input.get(cbaHeader.direction)
     cbaHeader._unknown2 = printf('0x%x', cbaHeader.unknown2)
@@ -66,5 +68,3 @@ module.exports = {
   unpackFile: unpackFile,
   unpack: unpack
 }
-
-unpackFile('out/chr/Ryu/baseact.cba', 'Ryu')

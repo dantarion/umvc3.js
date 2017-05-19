@@ -254,9 +254,9 @@ function unpack (inBuffer, outFile) {
     format: {
       indent: {
         style: '  '
-      },
+      }
     },
-    verbatim: 'raw',
+    verbatim: 'raw'
 
   })
   // Prepare output folder
@@ -296,7 +296,7 @@ function pack (inFile, outFile) {
     var currentOffset = dataStart
     result.body.forEach((expressExpression, index) => {
       assert(expressExpression.type === 'ExpressionStatement')
-      var stateExpr = expressExpression.expression.arguments[2];
+      var stateExpr = expressExpression.expression.arguments[2]
       assert(stateExpr.type === 'FunctionExpression')
       var state = {
         id: expressExpression.expression.arguments[0].value,

@@ -6,43 +6,44 @@ const common = require('./common')
 const _ = require('struct-fu')
 const mkdirp = require('mkdirp')
 const printf = require('printf')
-const CliEntryHeader = _.struct([
-  _.int32le('id'),
-  _.int32le('count')
-])
-const CliEntryBlock = _.struct([
-  _.int32le('unknown1'),
-  _.int32le('unknown2'),
-  _.int32le('unknown3'),
-  _.float32le('x'),
-  _.float32le('y'),
-  _.float32le('z'),
-  _.float32le('radius'),
-  _.int32le('unknown8')
+const CspEntryHeader = _.struct([
+  _.uint32le('id'),
+  _.uint32le('blockCount'),
+  _.uint32le('unknown'),
+  _.float32le('meterRequired'),
+  _.int32le('disabled'),
+  _.int32le('threshold'),
+  _.int32le('positionRequired'),
+  _.int32le('stateRequired'),
+  _.int32le('flags')
 ])
 
 function unpack (buffer, outFile) {
   // Read Header
   const entryHeader = common.CommonHeaderStruct.unpack(buffer, 0)
   const entries = {}
-  assert(entryHeader.Type === 'CLI', `This isn't a proper .ccm file, missing header CAC != ${entryHeader.Type}`)
-  assert(entryHeader.unknown === 537920034, `Is this really constant? ${entryHeader.unknown}`)
+  assert(entryHeader.Type === 'CSP', `This isn't a proper .csp file, missing header CSP != ${entryHeader.Type}`)
+  assert(entryHeader.unknown === 537986600, `Is this really constant? ${entryHeader.unknown}`)
   assert(entryHeader.unknown2 === 0, 'Is this really constant? unknown2')
   // console.log(entryHeader)
   // entryHeader.tableCount = 10;
   for (let i = 0; i < entryHeader.tableCount; i++) {
     const tableEntry = common.CommonTableEntry.unpack(buffer.slice(0x10 + i * 8))
-    const cliHeader = CliEntryHeader.unpack(buffer.slice(tableEntry.offset))
-    cliHeader._offset = printf('0x%0x', tableEntry.offset)
-    cliHeader._end = printf('0x%0x', tableEntry.offset + CliEntryHeader.size + cliHeader.count * CliEntryBlock.size)
-    entries[printf('0x%0x', tableEntry.id)] = cliHeader
-    cliHeader.blocks = []
-    for (let i = 0; i < cliHeader.count; i++) {
-      var tmp = CliEntryBlock.unpack(buffer.slice(tableEntry.offset + 0x8 + i * CliEntryBlock.size))
-      cliHeader.blocks.push(tmp)
+    // astRoot.body.push(astFunction)
+
+    const header = CspEntryHeader.unpack(buffer.slice(tableEntry.offset))
+    header.enabled = !!header.disabled
+    header._flags = `0x${header.flags.toString(16)}`
+    header.blocks = []
+    // console.log();
+    entries[printf('0x%0x', tableEntry.id)] = header
+    for (let i = 0; i < header.blockCount; i++) {
+      var block = common.ReqBlock.unpack(buffer.slice(tableEntry.offset + 0x24 + i * 0x20))
+      block._type = common.ReqBlockTypes[block.id]
+
+      header.blocks.push(block)
     }
   }
-
   // Prepare output folder
   mkdirp.sync(path.dirname(outFile))
   const outJS = fs.openSync(outFile, 'w')
