@@ -38,7 +38,6 @@ function unpack (inBuffer, outFile) {
   // entryHeader.tableCount = 10;
   for (let i = 0; i < entryHeader.tableCount; i++) {
     const tableEntry = common.CommonTableEntry.unpack(inBuffer.slice(0x10 + i * 8))
-    const tableEntryNext = common.CommonTableEntry.unpack(inBuffer.slice(0x10 + (i + 1) * 8))
     const anmHeader = AnmEntryHeader.unpack(inBuffer.slice(tableEntry.offset))
     assert(anmHeader.unknown3 === 0, 'Is this really constant? unknown3')
     assert(anmHeader.unknown4 === 0, 'Is this really constant? unknown4')
@@ -87,7 +86,6 @@ function unpack (inBuffer, outFile) {
     for (let j = 0; j < anmHeader.functionCount + 1; j++) {
       // Read Function Header
       const functionHeader = AnmFunctionHeader.unpack(inBuffer.slice(tableEntry.offset + 0x10 + j * 8))
-      const functionHeaderNext = AnmFunctionHeader.unpack(inBuffer.slice(tableEntry.offset + 0x10 + (j + 1) * 8))
       // console.log('\t\t', functionHeader)
       const astLabel = {
         type: 'LabeledStatement',
@@ -104,21 +102,12 @@ function unpack (inBuffer, outFile) {
       }
       astFunction.body.body.push(astLabel)
       const secondaryData = AnmFunctionHeader2.unpack(inBuffer.slice(tableEntry.offset + functionHeader.offset))
-      // console.log('\t\t', secondaryData)
+
       assert(secondaryData.unknown3 === 0, 'Is this really constant? unknown3')
       assert(secondaryData.unknown4 === 0, 'Is this really constant? unknown4')
       for (let n = 0; n < secondaryData.commandCount; n++) {
         const data = _.struct([_.int32le('offset'), _.uint32le('unknown1')]).unpack(inBuffer.slice(tableEntry.offset + functionHeader.offset + 0x10 + n * 8))
-        const data2 = _.struct([_.int32le('offset'), _.uint32le('unknown1')]).unpack(inBuffer.slice(tableEntry.offset + functionHeader.offset + 0x10 + (n + 1) * 8))
-        var dataSize = data2.offset - data.offset - 0x10
-        if (n === secondaryData.commandCount - 1) {
-          dataSize = functionHeaderNext.offset - functionHeader.offset - data.offset - 0x10
-          if (j === anmHeader.functionCount + 1 - 1) {
-            dataSize = tableEntryNext.offset - functionHeader.offset - data.offset - 0x10
-          }
-        }
         const command = AnmCommand.unpack(inBuffer.slice(tableEntry.offset + functionHeader.offset + data.offset))
-        // console.log('\t\t\t', command)
         var astCall = {
           type: 'ExpressionStatement',
           expression: {

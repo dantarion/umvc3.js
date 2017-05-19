@@ -28,7 +28,7 @@ watch(MOD_PATH, {
     console.log(filename, event, 'changed..compiling.')
 
     try {
-      var buffer = anm.pack(filename, filename.replace('.js', ''))
+      anm.pack(filename, filename.replace('.js', ''))
       var data = fs.readFileSync(filename.replace('.js', ''))
       filename = filename.replace(MOD_PATH + '\\', '').replace('.anm.js', '')
       filename = 'chr\\' + filename
