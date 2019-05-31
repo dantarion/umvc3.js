@@ -327,7 +327,7 @@ function pack (inFile, outFile) {
             id: 0,
             dataCount: callExpr.expression.arguments.length
           }
-
+          //TODO hook to get names another way :D
           call.group = parseInt(callExpr.expression.callee.name.substr(1, 2), 16)
           call.id = parseInt(callExpr.expression.callee.name.substr(4), 16)
           rawData = AnmCommand.pack(call)

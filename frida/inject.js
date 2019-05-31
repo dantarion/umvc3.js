@@ -1,40 +1,108 @@
-console.log("running")
+/* eslint no-undef: 0 */
+var GlobalAlloc = new NativeFunction(
+  Module.findExportByName('kernel32.dll', 'GlobalAlloc'),
+  'pointer',
+  ['int', 'int']
+)
+var GlobalFree = new NativeFunction(
+  Module.findExportByName('kernel32.dll', 'GlobalFree'),
+  'pointer',
+  ['pointer']
+)
+console.log(GlobalAlloc(0x40, 0x1000))
+console.log('running')
+var loadedFiles = {}
+var allocations = {}
 
-/*
-var mem = Memory.alloc(0x1000);
-var vTables = ["0x140B0F8B8","0x140A6B2A8","0x140A70408","0x140A70328","0x140A70280","0x140A701B8","0x140A700E8","0x140A6FFB8","0x140A6FED8","0x140A6FE20","0x140B11800"]
-vTables.forEach((vtableOffset) =>{
-  var constructor = Memory.readPointer(ptr(vtableOffset).add(0x8));
-  var destructor = Memory.readPointer(ptr(vtableOffset).add(0x18));
-  var toStringOff = Memory.readPointer(ptr(vtableOffset).add(0x28));
-  var tostr = new NativeFunction(toStringOff, 'pointer', ['pointer','pointer'])
-  var extOffset = 0x48;
+var replaced = {}
+rpc.exports = {
+  sendFile: function (filename, data) {
+    if (!loadedFiles[filename]) {
+      console.log("this file isn't loaded.", filename)
+      return
+    }
 
-if(vtableOffset === "0x140B11800"){
-  extOffset = 0x40;
+    var resource = loadedFiles[filename]
+    var allocation = GlobalAlloc(0x40,data.data.length)
+    if (resource.unloadFrom) {
+      replaced[filename] = allocations[filename]
+      delete allocations[filename]
+      Memory.writePointer(resource.ptr.add(0x70), resource.unloadFrom)
+    }
+    allocations[filename] = allocation
+    Memory.writeByteArray(allocation, data.data)
+    resource.unloadFrom = Memory.readPointer(resource.ptr.add(0x70))
+    console.error(resource.ptr, resource.unloadFrom, allocation)
+    Memory.writePointer(resource.ptr.add(0x70), allocation)
+    console.warn('>>>>>>>> Recieving...', filename, data.data.length)
+  }
 }
-  if(vtableOffset === "0x140A70280"){
-    extOffset = 0x40;
-  }
-  if(vtableOffset === "0x140A6FE20"){
-    extOffset = 0x40;
-  }
-  var getExt = Memory.readPointer(ptr(vtableOffset).add(extOffset));
-  var ext = Memory.readCString((new NativeFunction(getExt, 'pointer', []))());
+// '0x140A70280',
+var vTables = ['0x140B0F8B8', '0x140A6B2A8', '0x140A70408', '0x140A70328', '0x140A701B8', '0x140A700E8', '0x140A6FFB8', '0x140A6FED8', '0x140A6FE20', '0x140B11800']
+vTables.forEach((vtableOffset) => {
+  var constructor = Memory.readPointer(ptr(vtableOffset).add(0x8))
+  constructor = Memory.readPointer(ptr(vtableOffset).add(0x68))
+  var destructor = Memory.readPointer(ptr(vtableOffset).add(0x18))
+  var toStringOff = Memory.readPointer(ptr(vtableOffset).add(0x28))
+  // var tostr = new NativeFunction(toStringOff, 'pointer', ['pointer', 'pointer'])
+  var extOffset = 0x48
 
-  console.log(vtableOffset, ext)
+  if (vtableOffset === '0x140B11800') {
+    extOffset = 0x40
+  }
+  if (vtableOffset === '0x140A70280') {
+    extOffset = 0x40
+    constructor = Memory.readPointer(ptr(vtableOffset).add(0x60))
+  }
+  if (vtableOffset === '0x140A6FE20') {
+    extOffset = 0x40
+  }
+  var getExt = Memory.readPointer(ptr(vtableOffset).add(extOffset))
+  var ext = Memory.readCString((new NativeFunction(getExt, 'pointer', []))())
+
+  console.log(vtableOffset, ext, constructor, destructor)
 
   Interceptor.attach(constructor, {
-    onLeave: function(retval){
-        console.log(getExt,retval,ext)
-        //console.log(tostr(retval,mem),mem)
-
+    onEnter: function (args) {
+      var resource = {}
+      var path = Memory.readCString(args[0].add(0xC))
+      resource.ptr = args[0]
+      resource.file = path + '.' + ext
+      if (loadedFiles[resource.file]) {
+        console.error('>>>> Loading duplicate file?', JSON.stringify(resource))
+        return
+      }
+      console.log('>>>> Resource Loading : ', JSON.stringify(resource))
+      loadedFiles[resource.file] = resource
+      this.file = resource.file
+    },
+    onLeave: function (retval) {
+      if (this.file) {
+        send(['reqFile', this.file])
+      }
     }
-  });
+  })
+  Interceptor.attach(destructor, {
+    onEnter: function (args) {
+      var path = Memory.readCString(args[0].add(0xC))
+      var resource = loadedFiles[path + '.' + ext]
+      if (!resource) {
+        console.error('>>>> Unknown file being unloaded', JSON.stringify(resource))
+        return
+      }
+
+      if (resource.unloadFrom) {
+        // delete allocations[path];
+        Memory.writePointer(args[0].add(0x70), resource.unloadFrom)
+        GlobalFree(allocations[path + '.' + ext])
+      }
+      console.warn('>>>> Resource Unloading :', JSON.stringify(resource))
+      delete loadedFiles[path + '.' + ext]
+    }
+  })
 })
-*/
-var loadedFiles = {};
-var allocations = {};
+
+/*
 var f = new NativeFunction(ptr("0x1400511D0"), 'void', ['pointer','pointer']);
 var mem = Memory.alloc(0x1000)
 //140295380
@@ -63,30 +131,9 @@ Interceptor.attach(ptr("0x140295380"), {
     replaced = [];
   }
 });
-var replaced = {};
-rpc.exports = {
-  sendFile: function(filename,data){
+*/
 
-    if(!loadedFiles[filename]){
-      console.log("this file isn't loaded.",filename);
-      return;
-    }
-
-    var resource = loadedFiles[filename];
-    var allocation = Memory.alloc(data.data.length);
-    if(resource.unloadFrom){
-      replaced[filename] = allocations[filename];
-      delete allocations[filename];
-      Memory.writePointer(resource.ptr.add(0x70),resource.unloadFrom);
-    }
-    allocations[filename] = allocation;
-    Memory.writeByteArray(allocation,data.data);
-    resource.unloadFrom = Memory.readPointer(resource.ptr.add(0x70));
-    console.error(resource.ptr, resource.unloadFrom,allocation);
-    Memory.writePointer(resource.ptr.add(0x70),allocation);
-    console.warn(">>>>>>>> Recieving...",filename,data.data.length);
-  }
-};
+/*
 // ResourceInit
 Interceptor.attach(ptr("0x1402951D0"), {
   onEnter: function(args) {
@@ -115,7 +162,6 @@ Interceptor.attach(ptr("0x1402952E0"), {
   onLeave: function(retval) {
     console.log(retval);
   }
-
 
 });
 */

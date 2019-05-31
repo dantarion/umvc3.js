@@ -30,12 +30,12 @@ watch(MOD_PATH, {
     try {
       anm.pack(filename, filename.replace('.js', ''))
       var data = fs.readFileSync(filename.replace('.js', ''))
-      filename = filename.replace(MOD_PATH + '\\', '').replace('.anm.js', '')
+      filename = filename.replace(MOD_PATH + '\\', '').replace('.js', '')
       filename = 'chr\\' + filename
       console.log('<<<<<<<<<<<<<<<<< sending replacement file', filename)
       api.sendFile(filename, data)
     } catch (e) {
-      console.error("Couldn't load", filename)
+      console.error("Couldn't load", filename,e.message)
     }
   }, 100)
 })
@@ -50,9 +50,13 @@ co(function * () {
   yield script.load()
   api = yield script.getExports()
   script.events.listen('message', function (message, data) {
+
     if (!message.payload) {
       console.log(message)
       return
+    }
+    if (!message.payload[1].endsWith('.anm')){
+      return;
     }
     try {
       var filename = message.payload[1].replace('chr\\', '').replace('\\', '/')
@@ -60,9 +64,9 @@ co(function * () {
       anm.pack(lfilename + '.js', lfilename)
       var fdata = fs.readFileSync(lfilename)
       console.log('<<<<<<<<<<<<<<<<< sending replacement file', filename)
-      api.sendFile(message.payload[1].slice(0, -4), fdata)
+      api.sendFile(message.payload[1], fdata)
     } catch (e) {
-      console.error("Couldn't load", path.join(MOD_PATH, filename))
+      console.error("Couldn't load", path.join(MOD_PATH, filename),e.message)
     }
   })
   console.log('script loaded! WE IN THERE')
